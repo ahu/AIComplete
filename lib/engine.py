@@ -72,7 +72,7 @@ class Engine(object):
     def _report_error(self, view, message, detail=""):
         now = time.time()
         last_msg, last_at = self._last_error
-        self._status(view, "AI ✕")
+        self._status(view, "AI err")
         settings.debug("error:", message, detail)
         if message == last_msg and now - last_at < 60:
             return
@@ -189,7 +189,7 @@ class Engine(object):
         sug.guard = view.substr(sublime.Region(max(0, point - _PREFIX_GUARD), point))
         sug.change_count = view.change_count()
         ghost.show(view, sug.text, point, sug.index, sug.total)
-        self._status(view, "AI ✓")
+        self._status(view, "AI ok")
         return True
 
     # ---------------- 请求 ----------------
@@ -242,7 +242,7 @@ class Engine(object):
             self._deliver(view, token, ctx, cached, change_count, from_cache=True)
             return
 
-        self._status(view, "AI ⋯")
+        self._status(view, "AI ...")
         self._inflight.add(vid)
         num = max(1, int(settings.get("num_suggestions") or 1))
 
@@ -310,7 +310,7 @@ class Engine(object):
         sug = Suggestion(vid, cleaned, point, guard, view.change_count())
         self._suggestions[vid] = sug
         ghost.show(view, sug.text, point, sug.index, sug.total)
-        self._status(view, "AI ✓")
+        self._status(view, "AI ok")
 
     # ---------------- 候选切换 ----------------
 
@@ -364,7 +364,7 @@ class Engine(object):
             sug = Suggestion(vid, [leftover], new_point, guard, view.change_count())
             self._suggestions[vid] = sug
             ghost.show(view, leftover, new_point, 0, 1)
-            self._status(view, "AI ✓")
+            self._status(view, "AI ok")
         else:
             self._suggestions.pop(vid, None)
             ghost.clear(view)
