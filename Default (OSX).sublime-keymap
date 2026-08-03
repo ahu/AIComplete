@@ -1,0 +1,54 @@
+[
+    {
+        "keys": ["tab"],
+        "command": "ai_complete_accept",
+        "context": [
+            { "key": "ai_complete_visible", "operator": "equal", "operand": true },
+            { "key": "auto_complete_visible", "operator": "equal", "operand": false }
+        ]
+    },
+    {
+        "keys": ["ctrl+alt+right"],
+        "command": "ai_complete_accept_word",
+        "context": [
+            { "key": "ai_complete_visible", "operator": "equal", "operand": true }
+        ]
+    },
+    {
+        "keys": ["ctrl+alt+down"],
+        "command": "ai_complete_accept_line",
+        "context": [
+            { "key": "ai_complete_visible", "operator": "equal", "operand": true }
+        ]
+    },
+    {
+        "keys": ["escape"],
+        "command": "ai_complete_dismiss",
+        "context": [
+            { "key": "ai_complete_visible", "operator": "equal", "operand": true },
+            { "key": "auto_complete_visible", "operator": "equal", "operand": false },
+            { "key": "panel_visible", "operator": "equal", "operand": false },
+            { "key": "overlay_visible", "operator": "equal", "operand": false }
+        ]
+    },
+    {
+        "keys": ["super+shift+enter"],
+        "command": "ai_complete_request"
+    },
+    {
+        "keys": ["super+shift+]"],
+        "command": "ai_complete_cycle",
+        "args": { "delta": 1 },
+        "context": [
+            { "key": "ai_complete_visible", "operator": "equal", "operand": true }
+        ]
+    },
+    {
+        "keys": ["super+shift+["],
+        "command": "ai_complete_cycle",
+        "args": { "delta": -1 },
+        "context": [
+            { "key": "ai_complete_visible", "operator": "equal", "operand": true }
+        ]
+    }
+]

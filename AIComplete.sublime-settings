@@ -1,0 +1,103 @@
+{
+    // ------------------------------------------------------------------
+    // AIComplete —— 内联 AI 代码补全（ghost text）
+    // 复制本文件到 Packages/User/AIComplete.sublime-settings 后再修改，
+    // 这样升级插件不会覆盖你的配置。
+    // ------------------------------------------------------------------
+
+    // 总开关。也可以用命令面板 "AIComplete: Toggle" 临时切换。
+    "enabled": true,
+
+    // 打字后停顿多少毫秒才发起请求（防抖）。调大更省 token，调小更跟手。
+    "debounce_ms": 300,
+
+    // ------------------------------------------------------------------
+    // 模型服务
+    //   "openai"      标准 chat/completions 接口（OpenAI、DeepSeek、Kimi、
+    //                 OpenRouter、vLLM、one-api…… 只要兼容即可）
+    //   "openai_fim"  OpenAI 风格的 /completions + suffix 字段，真正的
+    //                 「中间填充」，代码补全质量最好（如 DeepSeek beta）
+    //   "ollama"      本地 Ollama，/api/generate，支持 suffix 做 FIM
+    // ------------------------------------------------------------------
+    "provider": "ollama",
+
+    "providers": {
+        "openai": {
+            "base_url": "https://api.openai.com/v1",
+            "api_key": "",
+            "model": "gpt-4o-mini",
+            "max_tokens": 256,
+            "temperature": 0.2
+        },
+        "openai_fim": {
+            // DeepSeek 的 FIM 补全端点示例
+            "base_url": "https://api.deepseek.com/beta",
+            "api_key": "",
+            "model": "deepseek-chat",
+            "max_tokens": 256,
+            "temperature": 0.2
+        },
+        "ollama": {
+            "base_url": "http://127.0.0.1:11434",
+            "api_key": "",
+            // 补全类任务优先选 coder 系列的 base 模型，它们训练过 FIM。
+            // 机器扛得住就换 qwen2.5-coder:7b，质量明显更好。
+            "model": "qwen2.5-coder:1.5b",
+            "max_tokens": 256,
+            "temperature": 0.2
+        }
+    },
+
+    // 请求超时（秒）
+    "timeout": 20,
+
+    // https 证书校验。公司自签证书报错时可临时设 false。
+    "verify_ssl": true,
+
+    // ------------------------------------------------------------------
+    // 上下文
+    // ------------------------------------------------------------------
+
+    // 光标之前 / 之后各取多少个字符送给模型
+    "prefix_chars": 3000,
+    "suffix_chars": 1000,
+
+    // 把同窗口其它已打开文件的开头片段也带上，帮模型理解项目风格
+    "use_open_files_context": true,
+    "open_files_max": 3,
+    "open_files_chars": 600,
+
+    // ------------------------------------------------------------------
+    // 输出
+    // ------------------------------------------------------------------
+
+    // 单次建议最多几行，超出部分截断
+    "max_lines": 12,
+
+    // 请求几个候选。openai / openai_fim 用接口自带的 n 参数；
+    // ollama 不支持 n，改用不同 seed 并行多次请求得到多个续写。
+    // 多候选开起来才能用 Cmd+Shift+[ / ] 切换候选。本地 1.5b 模型开 3 很轻。
+    "num_suggestions": 3,
+
+    // 自动补全弹窗出现时隐藏 ghost text，避免两层 UI 打架
+    "hide_when_autocomplete_visible": true,
+
+    // 只在光标处于「行尾或后面只剩空白/闭合符号」时触发，减少无效请求
+    "trigger_only_at_line_end": true,
+
+    // 这些 scope 下不触发（前缀匹配）
+    "disabled_scopes": [
+        "text.plain",
+        "text.find-in-files",
+        "source.regexp"
+    ],
+
+    // 这些语法下不触发，填 syntax 文件名里的关键字，小写匹配
+    "disabled_syntaxes": [],
+
+    // 在状态栏显示 AIComplete 的当前状态
+    "show_status": true,
+
+    // 打开调试日志（写到 Sublime 控制台，ctrl+`）
+    "debug": false
+}

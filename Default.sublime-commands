@@ -1,0 +1,34 @@
+[
+    {
+        "caption": "AIComplete: 开启 / 关闭",
+        "command": "ai_complete_toggle"
+    },
+    {
+        "caption": "AIComplete: 立即补全一次",
+        "command": "ai_complete_request"
+    },
+    {
+        "caption": "AIComplete: 在当前文件中关闭",
+        "command": "ai_complete_toggle_view"
+    },
+    {
+        "caption": "AIComplete: 测试与服务的连通性",
+        "command": "ai_complete_ping"
+    },
+    {
+        "caption": "Preferences: AIComplete 设置",
+        "command": "edit_settings",
+        "args": {
+            "base_file": "${packages}/AIComplete/AIComplete.sublime-settings",
+            "default": "{\n\t$0\n}\n"
+        }
+    },
+    {
+        "caption": "Preferences: AIComplete 快捷键",
+        "command": "edit_settings",
+        "args": {
+            "base_file": "${packages}/AIComplete/Default ($platform).sublime-keymap",
+            "default": "[\n\t$0\n]\n"
+        }
+    }
+]
