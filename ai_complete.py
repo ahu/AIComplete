@@ -1,4 +1,4 @@
-"""AIComplete —— Sublime Text 的内联 AI 代码补全。
+"""AhuAIComplete —— Sublime Text 的内联 AI 代码补全。
 
 灰色 ghost text 跟着光标出现，Tab 接受，Esc 丢弃。
 后端可以是本地 Ollama，也可以是任何 OpenAI 兼容服务。
@@ -175,12 +175,12 @@ class AiCompleteToggleCommand(sublime_plugin.ApplicationCommand):
             ghost.clear_all()
             engine.reset_all()
         sublime.status_message(
-            "AIComplete: %s" % ("已开启" if new_value else "已关闭")
+            "AhuAIComplete: %s" % ("已开启" if new_value else "已关闭")
         )
 
     def description(self):
         state = "关闭" if settings.get("enabled") else "开启"
-        return "AIComplete: %s" % state
+        return "AhuAIComplete: %s" % state
 
 
 class AiCompleteToggleViewCommand(sublime_plugin.TextCommand):
@@ -193,7 +193,7 @@ class AiCompleteToggleViewCommand(sublime_plugin.TextCommand):
         if disabled:
             engine.cancel(self.view)
         sublime.status_message(
-            "AIComplete: 当前文件%s" % ("已停用" if disabled else "已启用")
+            "AhuAIComplete: 当前文件%s" % ("已停用" if disabled else "已启用")
         )
 
 
@@ -201,7 +201,7 @@ class AiCompletePingCommand(sublime_plugin.WindowCommand):
     """打一次真实请求，验证 base_url / api_key / model 配对不对。"""
 
     def run(self):
-        sublime.status_message("AIComplete: 正在测试…")
+        sublime.status_message("AhuAIComplete: 正在测试…")
 
         def work():
             ok, message = client.ping()

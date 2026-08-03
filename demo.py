@@ -1,4 +1,4 @@
-"""AIComplete 试驾场地。
+"""AhuAIComplete 试驾场地。
 
 把光标放到下面任意一个 TODO 后面，停一下，灰色建议就会浮出来。
 Tab 接受整条 / Esc 丢弃 / Cmd+Shift+Enter 手动再要一条。

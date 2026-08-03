@@ -27,7 +27,7 @@ postprocess = __import__("%s.lib.postprocess" % PKG, fromlist=["postprocess"])
 
 def load_defaults():
     """直接读包里的 .sublime-settings（去掉注释后就是 JSON）。"""
-    path = os.path.join(ROOT, "AIComplete.sublime-settings")
+    path = os.path.join(ROOT, "AhuAIComplete.sublime-settings")
     raw = open(path, encoding="utf-8").read()
     raw = re.sub(r"^\s*//.*$", "", raw, flags=re.M)
     return json.loads(raw)

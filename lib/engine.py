@@ -77,7 +77,7 @@ class Engine(object):
         if message == last_msg and now - last_at < 60:
             return
         self._last_error = (message, now)
-        sublime.status_message("AIComplete: %s" % message)
+        sublime.status_message("AhuAIComplete: %s" % message)
 
     # ---------------- 查询 ----------------
 

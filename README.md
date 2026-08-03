@@ -1,4 +1,4 @@
-# AIComplete
+# AhuAIComplete
 
 Sublime Text 4 的内联 AI 代码补全插件，交互对齐 Codeium / Copilot：
 灰色 ghost text 跟着光标浮现，`Tab` 接受，`Esc` 丢弃。
@@ -22,19 +22,19 @@ def fib(n):
 ./install.sh --uninstall
 ```
 
-手动装也行：把整个 `AIComplete` 目录丢进
+手动装也行：把整个 `AhuAIComplete` 目录丢进
 `~/Library/Application Support/Sublime Text/Packages/`（macOS）。
 
 > **软链安装后改代码要重启 Sublime。** Sublime 的文件监视不跟随
 > symlink，改完源码它不会热重载，你会对着旧模块干瞪眼（这个坑我踩过）。
-> 需要频繁改代码就用 `--copy`，直接在 `Packages/AIComplete/` 里编辑。
+> 需要频繁改代码就用 `--copy`，直接在 `Packages/AhuAIComplete/` 里编辑。
 
-装完在命令面板跑一次 **AIComplete: 测试与服务的连通性**，
+装完在命令面板跑一次 **AhuAIComplete: 测试与服务的连通性**，
 它会打一个真实请求并把结果贴到输出面板，配错了一眼能看出来。
 
 ## 配置
 
-`Preferences → Package Settings → AIComplete → Settings`。
+`Preferences → Package Settings → AhuAIComplete → Settings`。
 
 默认走本地 Ollama：
 
@@ -84,7 +84,7 @@ ollama pull qwen2.5-coder:7b       # 机器扛得住就上这个，质量明显�
 > macOS 注意：`Option`+按键会产生组合字符（如 `Option+\` 打出 `«`），
 > 所以凡是原本用 `Option` 的组合在 macOS 上都改成了 `Cmd+Shift+…`，
 > 这样一定能匹配上。
-> 键盘不灵时，随时可以用命令面板搜 **`AIComplete: 立即补全一次`** 触发——和按键无关。
+> 键盘不灵时，随时可以用命令面板搜 **`AhuAIComplete: 立即补全一次`** 触发——和按键无关。
 
 `Tab` 只在建议可见、且自动补全弹窗没显示时才被接管，
 正常的缩进和 snippet 跳转不受影响。

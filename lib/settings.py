@@ -2,7 +2,7 @@
 
 import sublime
 
-SETTINGS_FILE = "AIComplete.sublime-settings"
+SETTINGS_FILE = "AhuAIComplete.sublime-settings"
 
 _DEFAULTS = {
     "enabled": True,
@@ -72,7 +72,7 @@ def provider_config():
 
 def debug(*args):
     if get("debug"):
-        print("[AIComplete]", *args)
+        print("[AhuAIComplete]", *args)
 
 
 def add_on_change(tag, callback):

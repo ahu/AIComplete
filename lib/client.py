@@ -96,7 +96,7 @@ def _post_json(url, payload, conf, headers=None):
     req_headers = {
         "Content-Type": "application/json",
         "Accept": "application/json",
-        "User-Agent": "AIComplete/1.0 (Sublime Text)",
+        "User-Agent": "AhuAIComplete/1.0 (Sublime Text)",
     }
     if conf.get("api_key"):
         req_headers["Authorization"] = "Bearer %s" % conf["api_key"]

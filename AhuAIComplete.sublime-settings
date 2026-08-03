@@ -1,11 +1,11 @@
 {
     // ------------------------------------------------------------------
-    // AIComplete —— 内联 AI 代码补全（ghost text）
-    // 复制本文件到 Packages/User/AIComplete.sublime-settings 后再修改，
+    // AhuAIComplete —— 内联 AI 代码补全（ghost text）
+    // 复制本文件到 Packages/User/AhuAIComplete.sublime-settings 后再修改，
     // 这样升级插件不会覆盖你的配置。
     // ------------------------------------------------------------------
 
-    // 总开关。也可以用命令面板 "AIComplete: Toggle" 临时切换。
+    // 总开关。也可以用命令面板 "AhuAIComplete: Toggle" 临时切换。
     "enabled": true,
 
     // 打字后停顿多少毫秒才发起请求（防抖）。调大更省 token，调小更跟手。
@@ -95,7 +95,7 @@
     // 这些语法下不触发，填 syntax 文件名里的关键字，小写匹配
     "disabled_syntaxes": [],
 
-    // 在状态栏显示 AIComplete 的当前状态
+    // 在状态栏显示 AhuAIComplete 的当前状态
     "show_status": true,
 
     // 打开调试日志（写到 Sublime 控制台，ctrl+`）
