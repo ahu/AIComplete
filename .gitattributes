@@ -1,0 +1,6 @@
+# Exclude development files from Package Control releases
+tests/              export-ignore
+demo.py             export-ignore
+install.sh          export-ignore
+*.sublime-project   export-ignore
+*.sublime-workspace export-ignore
