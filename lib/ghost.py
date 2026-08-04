@@ -76,9 +76,36 @@ def _ghost_color(view, t):
     return "#8a8a8a"
 
 
+def _ghost_font_size(view):
+    """把 Sublime 的 font_size（pt）换算成 phantom CSS 用的 px。
+
+    Sublime 的 font_size 是点；不同平台默认 DPI 不同：
+      - Windows / Linux 通常 96 DPI → 1pt ≈ 4/3 px
+      - macOS 逻辑 DPI 72 → 1pt ≈ 1px
+    直接当 px 写会让 Windows 上的 ghost 明显偏小一号。
+    """
+    pt = view.settings().get("font_size") or 12
+    try:
+        pt = float(pt)
+    except (TypeError, ValueError):
+        pt = 12
+    try:
+        plat = sublime.platform()
+    except Exception:
+        plat = "osx"
+    # macOS 按 1:1；Windows/Linux 按 96 DPI 换算
+    mult = 1.0 if plat == "osx" else 4.0 / 3.0
+    delta = view.settings().get("ghost_font_size_delta") or 0
+    try:
+        delta = float(delta)
+    except (TypeError, ValueError):
+        delta = 0
+    return int(round(pt * mult + delta))
+
+
 def _style_block(view):
     """返回一段 <style> 内容（CSS 里不带任何引号，避免 minihtml 丢属性）。"""
-    font_size = int(view.settings().get("font_size") or 12)
+    font_size = _ghost_font_size(view)
     color = _ghost_color(view, 0.55)
     badge_color = _ghost_color(view, 0.7)
     return (

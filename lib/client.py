@@ -145,7 +145,30 @@ def _join_url(base, path):
 # provider 实现
 # ----------------------------------------------------------------------
 
-def _complete_openai_chat(ctx, conf, n):
+def _openai_n(conf, num_suggestions, fim=False):
+    """openai / openai_fim 请求里用的 n（候选条数）。
+
+    - providers.X.n 显式写了就用它（DeepSeek /beta 这类只支持 n=1 的端点，
+      在配置里设 n:1 即可，不用动全局 num_suggestions）。
+    - 没写时：openai(chat) 默认沿用全局 num_suggestions；
+      openai_fim 默认 1（多数 FIM 端点如 deepseek /beta 只支持单条）。
+    """
+    raw = conf.get("n")
+    if raw is not None:
+        try:
+            return max(1, int(raw))
+        except (TypeError, ValueError):
+            pass
+    if fim:
+        return 1
+    try:
+        return max(1, int(num_suggestions))
+    except (TypeError, ValueError):
+        return 1
+
+
+def _complete_openai_chat(ctx, conf, num_suggestions):
+    n = _openai_n(conf, num_suggestions, fim=False)
     payload = {
         "model": conf["model"],
         "messages": _build_chat_messages(ctx),
@@ -171,7 +194,8 @@ def _complete_openai_chat(ctx, conf, n):
     return out
 
 
-def _complete_openai_fim(ctx, conf, n):
+def _complete_openai_fim(ctx, conf, num_suggestions):
+    n = _openai_n(conf, num_suggestions, fim=True)
     payload = {
         "model": conf["model"],
         "prompt": ctx.get("prefix", ""),

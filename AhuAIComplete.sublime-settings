@@ -34,6 +34,9 @@
             "base_url": "https://api.deepseek.com/beta",
             "api_key": "",
             "model": "deepseek-chat",
+            // 多数 FIM 端点（如 DeepSeek /beta）只支持单条，默认就发 n=1。
+            // 想要多条候选，在这里显式写 n，例如 "n": 3。此值优先于下面的
+            // 全局 num_suggestions。
             "max_tokens": 256,
             "temperature": 0.2
         },
@@ -74,10 +77,17 @@
     // 单次建议最多几行，超出部分截断
     "max_lines": 12,
 
-    // 请求几个候选。openai / openai_fim 用接口自带的 n 参数；
-    // ollama 不支持 n，改用不同 seed 并行多次请求得到多个续写。
+    // 想要几个候选（可用 Cmd+Shift+[ / ] 切换）。
+    //   ollama      —— 用「并行多次请求」凑出多个续写，条数由这里决定。
+    //   openai      —— 走接口自带的 n 参数，默认也用这个值（想多条就调大）。
+    //   openai_fim  —— 多数 FIM 端点（如 DeepSeek /beta）只支持 n=1，因此
+    //                 默认就发 1 条；要多条请在 providers.X.n 里显式设。
     // 多候选开起来才能用 Cmd+Shift+[ / ] 切换候选。本地 1.5b 模型开 3 很轻。
     "num_suggestions": 3,
+
+    // ghost text 字号微调（单位：px）。Windows 上若仍觉偏小可改成 1/2；
+    // 改成 0 表示完全按平台 DPI 换算，不再额外增减。
+    "ghost_font_size_delta": 0,
 
     // 自动补全弹窗出现时隐藏 ghost text，避免两层 UI 打架
     "hide_when_autocomplete_visible": true,

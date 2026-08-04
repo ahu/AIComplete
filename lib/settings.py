@@ -17,6 +17,7 @@ _DEFAULTS = {
     "open_files_max": 3,
     "open_files_chars": 600,
     "max_lines": 12,
+    "ghost_font_size_delta": 0,
     "num_suggestions": 3,
     "hide_when_autocomplete_visible": True,
     "trigger_only_at_line_end": True,

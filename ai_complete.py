@@ -223,6 +223,69 @@ class AiCompletePingCommand(sublime_plugin.WindowCommand):
 
 
 # ======================================================================
+# 设置 / 键位菜单（适配 Add Repository 时包文件夹名可能不是 AhuAIComplete）
+# ======================================================================
+
+def _own_package_path():
+    """找到本插件包所在的 Packages/xxx 资源路径。
+
+    Package Control 官方频道按 name 字段装到 Packages/AhuAIComplete/；
+    但 Add Repository 直接按仓库名装到 Packages/AIComplete/。菜单里写死
+    AhuAIComplete 会打不开。这里通过 ai_complete.py 的位置反推包名。
+    """
+    try:
+        candidates = sublime.find_resources("ai_complete.py")
+    except Exception:
+        return None
+    for res in candidates:
+        if res.startswith("Packages/User/"):
+            continue
+        if res.endswith("/ai_complete.py"):
+            return res[:-len("/ai_complete.py")]
+    return None
+
+
+def _own_resource(filename):
+    pkg = _own_package_path()
+    if pkg:
+        return "%s/%s" % (pkg, filename)
+    return None
+
+
+class AiCompleteEditSettingsCommand(sublime_plugin.ApplicationCommand):
+    """Preferences → Package Settings → AhuAIComplete → Settings"""
+
+    def run(self):
+        base = _own_resource("AhuAIComplete.sublime-settings")
+        if not base:
+            sublime.status_message("AhuAIComplete: 找不到默认设置文件")
+            return
+        sublime.run_command("edit_settings", {
+            "base_file": base,
+            "default": "{\n\t$0\n}\n",
+        })
+
+
+class AiCompleteEditKeyBindingsCommand(sublime_plugin.ApplicationCommand):
+    """Preferences → Package Settings → AhuAIComplete → Key Bindings"""
+
+    def run(self):
+        plat = {"windows": "Windows", "linux": "Linux", "osx": "OSX"}.get(
+            sublime.platform(), "Windows"
+        )
+        base = _own_resource("Default (%s).sublime-keymap" % plat)
+        if not base:
+            base = _own_resource("Default.sublime-keymap")
+        if not base:
+            sublime.status_message("AhuAIComplete: 找不到默认键位文件")
+            return
+        sublime.run_command("edit_settings", {
+            "base_file": base,
+            "default": "[\n\t$0\n]\n",
+        })
+
+
+# ======================================================================
 # 插件生命周期
 # ======================================================================
 

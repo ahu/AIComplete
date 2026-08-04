@@ -30,25 +30,5 @@
             { "key": "panel_visible", "operator": "equal", "operand": false },
             { "key": "overlay_visible", "operator": "equal", "operand": false }
         ]
-    },
-    {
-        "keys": ["alt+backslash"],
-        "command": "ai_complete_request"
-    },
-    {
-        "keys": ["alt+]"],
-        "command": "ai_complete_cycle",
-        "args": { "delta": 1 },
-        "context": [
-            { "key": "ai_complete_visible", "operator": "equal", "operand": true }
-        ]
-    },
-    {
-        "keys": ["alt+["],
-        "command": "ai_complete_cycle",
-        "args": { "delta": -1 },
-        "context": [
-            { "key": "ai_complete_visible", "operator": "equal", "operand": true }
-        ]
     }
 ]

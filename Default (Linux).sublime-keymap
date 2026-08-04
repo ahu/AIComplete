@@ -1,10 +1,10 @@
 [
     {
-        "keys": ["super+shift+enter"],
+        "keys": ["alt+backslash"],
         "command": "ai_complete_request"
     },
     {
-        "keys": ["super+shift+]"],
+        "keys": ["alt+]"],
         "command": "ai_complete_cycle",
         "args": { "delta": 1 },
         "context": [
@@ -12,7 +12,7 @@
         ]
     },
     {
-        "keys": ["super+shift+["],
+        "keys": ["alt+["],
         "command": "ai_complete_cycle",
         "args": { "delta": -1 },
         "context": [
