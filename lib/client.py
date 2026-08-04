@@ -342,6 +342,11 @@ def complete(ctx, num_suggestions=1):
             "未知的 provider：%s" % name,
             "可选：%s" % ", ".join(sorted(_PROVIDERS)),
         )
+    # 用户覆盖文件是「浅合并」——只写 providers.ollama.model 会把整个
+    # providers.ollama 子树替换掉，连带吞掉包内默认的 base_url。
+    # 对本地 ollama 给个兜底，避免这种情况直接报错。
+    if not conf.get("base_url") and name == "ollama":
+        conf["base_url"] = "http://127.0.0.1:11434"
     if not conf.get("base_url"):
         raise ClientError("provider «%s» 没配 base_url" % name)
     if not conf.get("model"):

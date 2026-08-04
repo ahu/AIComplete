@@ -1,0 +1,18 @@
+{
+	"$schema": "sublime://packagecontrol.io/schemas/repository",
+	"schema_version": "4.0.0",
+	"packages": [
+		{
+			"name": "AhuAIComplete",
+			"details": "https://github.com/ahu/AIComplete",
+			"labels": ["auto-complete", "ai", "completion"],
+			"releases": [
+				{
+					"sublime_text": ">=4107",
+					"python_versions": ["3.8"],
+					"tags": true
+				}
+			]
+		}
+	]
+}

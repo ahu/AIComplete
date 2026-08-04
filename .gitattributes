@@ -2,5 +2,8 @@
 tests/              export-ignore
 demo.py             export-ignore
 install.sh          export-ignore
+# Package Control fetches this over raw.githubusercontent.com, never from the
+# package zip — no need to ship it inside the installed package.
+repository.json     export-ignore
 *.sublime-project   export-ignore
 *.sublime-workspace export-ignore

@@ -246,10 +246,30 @@ def _own_package_path():
 
 
 def _own_resource(filename):
+    """返回 edit_settings 能吃的 base_file，形如 ${packages}/<包名>/<filename>。
+
+    注意：必须用字面量 "${packages}" 前缀，不能直接用 find_resources 返回的
+    "Packages/xxx"。Sublime 的 EditSettingsCommand 内部是
+        base_path = base_file.replace("${packages}", "res://Packages")
+    只有替换成 res:// 开头才会被当成资源查找；否则会退化成相对文件系统路径，
+    os.path.exists 必然失败，弹出 "could not be opened"。
+    """
     pkg = _own_package_path()
-    if pkg:
-        return "%s/%s" % (pkg, filename)
-    return None
+    if not pkg:
+        return None
+    # pkg 形如 "Packages/AIComplete" —— 换成 "${packages}/AIComplete"
+    if pkg.startswith("Packages/"):
+        pkg = "${packages}/" + pkg[len("Packages/"):]
+    return "%s/%s" % (pkg, filename)
+
+
+def _resource_exists(base_file):
+    """base_file 形如 ${packages}/X/Y —— 按 Sublime 的规则验证资源是否真存在。"""
+    path = base_file.replace("${packages}", "Packages")
+    try:
+        return path in sublime.find_resources(path.rsplit("/", 1)[-1])
+    except Exception:
+        return False
 
 
 class AiCompleteEditSettingsCommand(sublime_plugin.ApplicationCommand):
@@ -273,9 +293,15 @@ class AiCompleteEditKeyBindingsCommand(sublime_plugin.ApplicationCommand):
         plat = {"windows": "Windows", "linux": "Linux", "osx": "OSX"}.get(
             sublime.platform(), "Windows"
         )
-        base = _own_resource("Default (%s).sublime-keymap" % plat)
-        if not base:
-            base = _own_resource("Default.sublime-keymap")
+        # 平台专属文件优先；万一某平台文件缺失，回退到通用 keymap，
+        # 免得 edit_settings 弹 "could not be opened"。
+        base = None
+        for name in ("Default (%s).sublime-keymap" % plat,
+                     "Default.sublime-keymap"):
+            candidate = _own_resource(name)
+            if candidate and _resource_exists(candidate):
+                base = candidate
+                break
         if not base:
             sublime.status_message("AhuAIComplete: 找不到默认键位文件")
             return
