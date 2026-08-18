@@ -16,7 +16,7 @@
         "command": "ai_complete_ping"
     },
     {
-        "caption": "Preferences: AhuAIComplete 设置",
+        "caption": "Preferences: AhuAIComplete Settings",
         "command": "edit_settings",
         "args": {
             "base_file": "${packages}/AhuAIComplete/AhuAIComplete.sublime-settings",
@@ -24,7 +24,7 @@
         }
     },
     {
-        "caption": "Preferences: AhuAIComplete 快捷键",
+        "caption": "Preferences: AhuAIComplete Key Bindings",
         "command": "edit_settings",
         "args": {
             "base_file": "${packages}/AhuAIComplete/Default ($platform).sublime-keymap",

@@ -1,7 +1,10 @@
 [
     {
         "keys": ["super+shift+enter"],
-        "command": "ai_complete_request"
+        "command": "ai_complete_request",
+        "context": [
+            { "key": "setting.enabled", "operator": "equal", "operand": true }
+        ]
     },
     {
         "keys": ["super+shift+]"],

@@ -14,11 +14,19 @@
                         "children": [
                         {
                             "caption": "Settings",
-                            "command": "ai_complete_edit_settings"
+                            "command": "edit_settings",
+                            "args": {
+                                "base_file": "${packages}/AhuAIComplete/AhuAIComplete.sublime-settings",
+                                "default": "{\n\t$0\n}\n"
+                            }
                         },
                         {
                             "caption": "Key Bindings",
-                            "command": "ai_complete_edit_key_bindings"
+                            "command": "edit_settings",
+                            "args": {
+                                "base_file": "${packages}/AhuAIComplete/Default ($platform).sublime-keymap",
+                                "default": "[\n\t$0\n]\n"
+                            }
                         },
                             { "caption": "-" },
                             {

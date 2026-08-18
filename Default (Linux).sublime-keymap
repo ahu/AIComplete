@@ -1,7 +1,10 @@
 [
     {
-        "keys": ["alt+backslash"],
-        "command": "ai_complete_request"
+        "keys": ["alt+\\"],
+        "command": "ai_complete_request",
+        "context": [
+            { "key": "setting.enabled", "operator": "equal", "operand": true }
+        ]
     },
     {
         "keys": ["alt+]"],
