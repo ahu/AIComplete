@@ -1,9 +1,9 @@
-"""纯逻辑测试，不需要 Sublime 运行时。
+"""Pure logic tests; no Sublime runtime required.
 
     python3 tests/test_logic.py
 
-补全质量的锅八成出在文本清洗上（模型抄前缀、套围栏、补重复括号），
-所以这几条一定要盯住。
+Most completion-quality problems come from text cleaning (models repeating the
+prefix, adding fences, duplicating brackets), so these cases matter.
 """
 
 import os
@@ -14,7 +14,7 @@ import unittest
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.dirname(ROOT))
 
-# ---- 造一个够用的假 sublime，好让 ghost 模块能被 import ----
+# ---- Minimal fake sublime module, so ghost can be imported ----
 _fake = types.ModuleType("sublime")
 _fake.LAYOUT_INLINE = 0
 _fake.LAYOUT_BELOW = 1
@@ -143,7 +143,7 @@ class TestClean(unittest.TestCase):
         self.assertEqual(out.count("\n"), 2)
 
     def test_double_indent_removed(self):
-        # 光标停在纯缩进之后，模型又给了一遍缩进
+        # cursor after pure indentation and the model adds the indent again
         out = postprocess.clean(
             "        total = 0", ctx(prefix="def f():\n        ",
                                      line_prefix="        "), max_lines=12
@@ -170,7 +170,7 @@ class TestConsumeTyped(unittest.TestCase):
 
 
 class TestProseRejection(unittest.TestCase):
-    """模型退化成聊天时要挡住，但不能误伤正常代码。"""
+    """Chatty degradation must be blocked without harming real code."""
 
     def test_chatty_explanation_rejected(self):
         self.assertTrue(postprocess.looks_like_prose(PROSE, ctx()))
@@ -179,10 +179,10 @@ class TestProseRejection(unittest.TestCase):
         self.assertEqual(postprocess.clean(PROSE, ctx(), 12, reject_prose=True), "")
 
     def test_kept_when_flag_off(self):
-        # chat provider 不开这个开关，行为保持原样
+        # chat providers leave the flag off, so behaviour is unchanged
         self.assertNotEqual(postprocess.clean(PROSE, ctx(), 12), "")
 
-    # ---- 以下都是不该被误杀的正常补全 ----
+    # ---- these are legitimate completions that must survive ----
 
     def test_sql_kept(self):
         sql = "SELECT name, price FROM items WHERE qty > 0 ORDER BY price DESC"
@@ -193,7 +193,7 @@ class TestProseRejection(unittest.TestCase):
         self.assertFalse(postprocess.looks_like_prose(code, ctx()))
 
     def test_long_docstring_kept(self):
-        # 光标在字符串里，出现自然语言完全正常
+        # cursor inside a string: natural language is perfectly normal
         doc = ("This function computes the nth fibonacci number using "
                "recursion and returns it")
         self.assertFalse(postprocess.looks_like_prose(
@@ -213,7 +213,7 @@ class TestProseRejection(unittest.TestCase):
 
 
 class TestFimSuffix(unittest.TestCase):
-    """空 suffix 会让 Ollama 走进聊天分支，必须兜住。"""
+    """An empty suffix pushes Ollama into chat mode and must be handled."""
 
     def setUp(self):
         self.client = __import__("%s.lib.client" % PKG, fromlist=["client"])
@@ -250,11 +250,11 @@ class _FakeView(object):
         return self._settings
 
     def line(self, point):
-        # 假实现：返回该点所在「行」的 region，行尾随便给个比 point 大的值
+        # fake: a region for the line, with an end just beyond point
         return _Region(point, point + 1)
 
     def style(self):
-        # 模拟 Sublime 的 view.style()：返回 color scheme 的前景/背景
+        # mimics view.style(): foreground / background from the color scheme
         fg = self._settings.get("foreground")
         bg = self._settings.get("background")
         out = {}
@@ -280,21 +280,21 @@ class TestGhostEscaping(unittest.TestCase):
         self.assertEqual(out, "&nbsp;&nbsp;&nbsp;&nbsp;x")
 
     def test_ghost_color_blends_toward_background(self):
-        """ghost 灰阶由前景+背景混合得到，是字面量 hex（minihtml 一定渲染）。"""
+        """Ghost grey is blended from fg+bg into a literal hex that minihtml renders."""
         view = _FakeView(3, {"foreground": "#ffffff", "background": "#000000"})
-        # t=0.55：白(255)偏向黑(0) -> 约 115，灰
+        # t=0.55: white (255) leaning to black (0) -> about 115, grey
         self.assertEqual(ghost._ghost_color(view, 0.55), "#737373")
 
     def test_ghost_color_fallback_when_style_missing(self):
-        view = _FakeView(4, {})  # 没有 foreground/background
+        view = _FakeView(4, {})  # no foreground/background
         self.assertEqual(ghost._ghost_color(view, 0.55), "#8a8a8a")
 
 
 class TestGhostRendering(unittest.TestCase):
-    """渲染必须走 <style> 类选择器，绝不能出现带引号的 inline style。
+    """Rendering must use a <style> class selector, never a quoted inline style.
 
-    旧 bug：inline style 里写 font-family: 'JetBrains Mono NL Thin'，
-    单引号让 minihtml 把整个 style 属性丢掉，连 color 一起没了 -> 白字。
+    Old bug: an inline style with font-family: 'JetBrains Mono NL Thin' made
+    minihtml drop the whole style attribute, colour included -> white text.
     """
 
     def test_style_block_has_hex_color_no_quotes(self):
@@ -303,7 +303,7 @@ class TestGhostRendering(unittest.TestCase):
         block = ghost._style_block(view)
         self.assertIn("#", block)
         self.assertIn("font-weight:normal", block)
-        # 关键：CSS 里不能有任何引号，否则旧 bug 复现
+        # key: no quotes may appear in the CSS, or the old bug returns
         self.assertNotIn('"', block)
         self.assertNotIn("'", block)
         self.assertNotIn("font-family", block)
@@ -318,7 +318,7 @@ class TestGhostRendering(unittest.TestCase):
         content = inline_set.phantoms[0].content
         self.assertIn('class="ai-ghost"', content)
         self.assertIn("#", content)
-        # 不应再出现带引号的 inline style（旧 bug 根源）
+        # no quoted inline style may reappear (root cause of the old bug)
         self.assertNotIn('style="font-family', content)
         self.assertNotIn("'", content)
         ghost.clear(view)
@@ -335,7 +335,7 @@ class TestGhostRendering(unittest.TestCase):
 
 
 class TestCandidateCycling(unittest.TestCase):
-    """候选切换：多候选才切得动，单候选必须 return False。"""
+    """Cycling only works with multiple candidates; a single one returns False."""
 
     def setUp(self):
         self.engine = engine_module.Engine()
@@ -353,7 +353,7 @@ class TestCandidateCycling(unittest.TestCase):
         self.assertTrue(self.engine.cycle(self.view, 1))
         self.assertEqual(self.engine.current(self.view).index, 1)
         self.engine.cycle(self.view, 1)
-        self.engine.cycle(self.view, 1)  # 第三次绕回 0
+        self.engine.cycle(self.view, 1)  # third call wraps back to 0
         self.assertEqual(self.engine.current(self.view).index, 0)
 
     def test_cycle_backward_wraps(self):

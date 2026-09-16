@@ -1,4 +1,4 @@
-"""从 view 里抽取送给模型的上下文。"""
+"""Extract the context that gets sent to the model from a view."""
 
 import os
 import re
@@ -7,7 +7,7 @@ import sublime
 
 from . import settings
 
-# 光标后如果只剩这些字符，仍然认为「在行尾」，可以触发补全
+# If only these characters follow the cursor, treat it as end-of-line.
 _TRAILING_OK = re.compile(r"^[\s\)\]\}\;\,\.\:\'\"]*$")
 
 _EXT_LANG = {
@@ -27,7 +27,7 @@ _EXT_LANG = {
 
 
 def language_of(view):
-    """猜一个语言标识，优先看扩展名，其次看 syntax 名。"""
+    """Guess a language id: prefer the file extension, then the syntax name."""
     fname = view.file_name()
     if fname:
         ext = os.path.splitext(fname)[1].lower()
@@ -39,7 +39,7 @@ def language_of(view):
 
 
 def is_enabled_for(view):
-    """判断这个 view 该不该跑补全。"""
+    """Decide whether completion should run for this view."""
     if view is None or view.is_read_only():
         return False
     if view.settings().get("is_widget"):
@@ -47,7 +47,7 @@ def is_enabled_for(view):
     if view.settings().get("ai_complete_disabled"):
         return False
     if view.element() is not None:
-        # 控制台、输入框之类的内建 element
+        # built-in elements such as the console or an input widget
         return False
 
     syntax = (view.settings().get("syntax") or "").lower()
@@ -67,7 +67,7 @@ def is_enabled_for(view):
 
 
 def at_trigger_position(view):
-    """光标位置是否适合触发（默认要求行尾或后面只剩闭合符号/空白）。"""
+    """Whether the cursor is at a suitable trigger position (end of line)."""
     if not settings.get("trigger_only_at_line_end"):
         return True
     sel = view.sel()
@@ -80,7 +80,7 @@ def at_trigger_position(view):
 
 
 def _other_files_snippets(view):
-    """同窗口其它文件的开头片段，给模型一点项目风味。"""
+    """Opening snippets of other files in the window, for a sense of style."""
     if not settings.get("use_open_files_context"):
         return []
     window = view.window()
@@ -109,7 +109,7 @@ def _other_files_snippets(view):
 
 
 def build(view):
-    """打包一份上下文字典。取不到就返回 None。"""
+    """Build the context dict. Return None when it cannot be built."""
     sel = view.sel()
     if not sel:
         return None
@@ -129,7 +129,7 @@ def build(view):
         "prefix": prefix,
         "suffix": suffix,
         "point": point,
-        # 光标所在的 scope，用来判断这里是代码还是注释/字符串
+        # Scope at the cursor: tells code apart from comments / strings
         "scope": view.scope_name(point),
         "language": language_of(view),
         "filename": os.path.basename(fname) if fname else "untitled",
@@ -142,7 +142,7 @@ def build(view):
 
 
 def cache_key(ctx):
-    """同样的前后文不必重复请求。只看尾部，够区分了。"""
+    """The same prefix/suffix needs no second request; the tail is enough."""
     return "\u0000".join([
         ctx.get("filepath", ""),
         ctx["prefix"][-800:],

@@ -1,7 +1,7 @@
-"""把模型吐出来的原始文本，清洗成可以直接插进 buffer 的补全。
+"""Turn raw model output into a completion that can be inserted into a buffer.
 
-模型很爱多嘴：套 markdown 围栏、把已经写过的代码再抄一遍、
-补一堆和后文重复的闭合括号。这里逐条修掉。
+Models ramble: they wrap code in markdown fences, repeat code already in the
+buffer, and add closing brackets that duplicate the suffix. Each is fixed here.
 """
 
 import re
@@ -9,25 +9,27 @@ import re
 _FENCE_OPEN = re.compile(r"^\s*```[^\n]*\n", re.S)
 _FENCE_CLOSE = re.compile(r"\n?```\s*$", re.S)
 
-# 聊天型模型跑偏时的开场白特征
+# Opening words that betray a chatty model
 _PROSE_LEAD = re.compile(
     r"^(the|this|that|here|sure|certainly|note|however|it|you|we|i|to)\b",
     re.I,
 )
-# 只要出现这些就基本可以认定是代码，不是解说
+# Any of these means it is code rather than prose
 _CODE_HINT = re.compile(r"[=(){}\[\];<>]|^\s*(#|//|/\*|\*|-{2,})")
 
 _PROSE_FREE_LANGS = ("markdown", "text", "plaintext", "")
 
 
 def looks_like_prose(text, ctx):
-    """判断模型是不是又开始「解释你的代码」了。
+    """Detect a model that started explaining your code instead of extending it.
 
-    FIM 模式下模型只该吐代码。一旦 suffix 为空或模板没命中，instruct
-    模型就会退化成聊天，返回一整段英文说明 —— 这种绝不能插进 buffer。
+    In FIM mode the model should only emit code. Once the suffix is empty or
+    the template does not match, an instruct model degrades into chat and
+    returns a paragraph of prose -- which must never reach the buffer.
 
-    误伤是这里最大的风险，所以判定条件卡得很紧：
-    光标本来就在注释或字符串里时直接放行，那里出现自然语言天经地义。
+    False positives are the real risk here, so the conditions are tight: when
+    the cursor already sits in a comment or a string, natural language is
+    expected and the text is allowed through.
     """
     language = (ctx.get("language") or "").lower()
     if language in _PROSE_FREE_LANGS:
@@ -53,17 +55,18 @@ def strip_code_fence(text):
         text = _FENCE_OPEN.sub("", stripped, count=1)
         text = _FENCE_CLOSE.sub("", text)
         return text
-    # 只有收尾围栏的情况
+    # only a closing fence is present
     idx = text.find("```")
     return text[:idx] if idx > 0 else text
 
 
 def strip_repeated_prefix(completion, prefix):
-    """模型有时会把光标前的最后一段重新抄一遍，去掉这种重复。"""
+    """Models sometimes repeat the last chunk before the cursor; drop the overlap."""
     if not completion or not prefix:
         return completion
     tail = prefix[-400:]
-    # 找 completion 的开头和 prefix 的结尾最长的重叠
+    # Find the longest overlap between the head of the completion and the tail
+    # of the prefix
     max_len = min(len(tail), len(completion))
     for size in range(max_len, 3, -1):
         if tail.endswith(completion[:size]):
@@ -72,10 +75,10 @@ def strip_repeated_prefix(completion, prefix):
 
 
 def trim_overlap_with_suffix(completion, suffix):
-    """补全结尾和光标后的文本重复时裁掉，防止出现 `))` `}}`。"""
+    """Trim a completion whose tail duplicates the suffix, avoiding `))` / `}}`."""
     if not completion or not suffix:
         return completion
-    # 只跟后文的第一行比，跨行裁剪误伤太大
+    # Only the first suffix line is compared; multi-line trimming over-trims
     suffix_head = suffix.split("\n", 1)[0]
     if not suffix_head.strip():
         return completion
@@ -102,10 +105,10 @@ def drop_trailing_blank_lines(completion):
 
 
 def clean(raw, ctx, max_lines=12, reject_prose=False):
-    """完整清洗流水线。返回 '' 表示这条建议不值得展示。
+    """The full cleaning pipeline. '' means the suggestion is not worth showing.
 
-    reject_prose 建议只对 FIM 类 provider 打开：那种模式下模型返回
-    自然语言就说明请求走岔了，宁可不显示。
+    reject_prose is only enabled for FIM-style providers: there, natural
+    language means the request went off the rails and is better dropped.
     """
     if not raw:
         return ""
@@ -113,7 +116,7 @@ def clean(raw, ctx, max_lines=12, reject_prose=False):
     text = raw.replace("\r\n", "\n").replace("\r", "\n")
     text = strip_code_fence(text)
 
-    # 模型偶尔用 "<|...|>" 之类的特殊 token 收尾
+    # Models occasionally end with a special token such as "<|...|>"
     for token in ("<|endoftext|>", "<|fim_middle|>", "<|file_separator|>",
                   "<|EOT|>", "<EOT>", "</s>"):
         pos = text.find(token)
@@ -125,14 +128,14 @@ def clean(raw, ctx, max_lines=12, reject_prose=False):
 
     text = strip_repeated_prefix(text, ctx.get("prefix", ""))
 
-    # 首行前导空白：光标已经在缩进之后了，模型再补缩进就是重复
+    # Leading whitespace: the cursor is already past the indent
     line_prefix = ctx.get("line_prefix", "")
     if line_prefix.strip() == "" and line_prefix:
-        # 光标处在纯缩进后面，模型如果又给了一份相同缩进就去掉
+        # Cursor sits after pure indentation; drop a duplicated indent
         if text.startswith(line_prefix):
             text = text[len(line_prefix):]
     elif line_prefix.endswith((" ", "\t")) and text[:1] in (" ", "\t"):
-        # 光标前已经有空格了，模型再补一个就变成双空格
+        # There is already a space before the cursor; one more would double it
         text = text.lstrip(" \t")
 
     text = limit_lines(text, max_lines)
@@ -145,9 +148,10 @@ def clean(raw, ctx, max_lines=12, reject_prose=False):
 
 
 def consume_typed(completion, typed):
-    """用户又敲了几个字符时，看能不能接着用旧建议。
+    """Check whether an existing suggestion can be reused after the user typed.
 
-    typed 是用户新输入的内容。命中就返回剩下那截，否则返回 None。
+    typed is what the user just entered. Return the remaining part on a match,
+    otherwise None.
     """
     if not typed:
         return completion

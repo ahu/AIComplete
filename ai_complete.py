@@ -1,7 +1,8 @@
-"""AhuAIComplete —— Sublime Text 的内联 AI 代码补全。
+"""AhuAIComplete -- inline AI code completion for Sublime Text.
 
-灰色 ghost text 跟着光标出现，Tab 接受，Esc 丢弃。
-后端可以是本地 Ollama，也可以是任何 OpenAI 兼容服务。
+Grey ghost text appears at the cursor as you type: Tab accepts it, Esc
+dismisses it. The backend can be a local Ollama instance or any
+OpenAI-compatible service.
 """
 
 import threading
@@ -16,7 +17,7 @@ SETTINGS_TAG = "ai_complete_settings"
 
 
 # ======================================================================
-# 事件监听
+# Event listeners
 # ======================================================================
 
 class AiCompleteListener(sublime_plugin.EventListener):
@@ -24,7 +25,7 @@ class AiCompleteListener(sublime_plugin.EventListener):
         super().__init__()
         self._change_counts = {}
 
-    # ---- 键位上下文：让 Tab / Esc 只在有建议时被劫持 ----
+    # ---- Context key: only hijack Tab / Esc while a suggestion is visible ----
     def on_query_context(self, view, key, operator, operand, match_all):
         if key != "ai_complete_visible":
             return None
@@ -44,11 +45,11 @@ class AiCompleteListener(sublime_plugin.EventListener):
 
         self._change_counts[view.id()] = view.change_count()
 
-        # 刚刚接受建议造成的变化，不要打断自己
+        # We just inserted a suggestion ourselves -- do not interrupt.
         if engine.is_self_inflicted(view):
             return
 
-        # 用户继续往下打字且和建议吻合 —— 直接沿用，不重新请求
+        # The user kept typing and it still matches -- reuse it, skip the request.
         if engine.try_extend(view):
             return
 
@@ -57,7 +58,7 @@ class AiCompleteListener(sublime_plugin.EventListener):
 
     def on_selection_modified_async(self, view):
         vid = view.id()
-        # 只有「纯移动光标」才需要撤建议；打字引起的位移交给 on_modified
+        # Only pure cursor movement cancels; typing is handled by on_modified.
         if self._change_counts.get(vid) == view.change_count():
             sug = engine.current(view)
             if sug is not None:
@@ -74,7 +75,7 @@ class AiCompleteListener(sublime_plugin.EventListener):
         self._change_counts.pop(view.id(), None)
 
     def on_text_command(self, view, command_name, args):
-        # 自动补全弹窗弹出来的时候，两层 UI 叠一起很难看
+        # The two overlays look bad when the autocomplete popup opens.
         if command_name in ("auto_complete", "show_overlay", "undo", "redo"):
             if engine.is_visible(view):
                 engine.cancel(view)
@@ -82,7 +83,7 @@ class AiCompleteListener(sublime_plugin.EventListener):
 
 
 # ======================================================================
-# 接受建议
+# Accepting suggestions
 # ======================================================================
 
 def _accept(view, edit, portion):
@@ -104,7 +105,7 @@ def _accept(view, edit, portion):
 
 
 class AiCompleteAcceptCommand(sublime_plugin.TextCommand):
-    """接受整条建议。"""
+    """Accept the whole suggestion."""
 
     def run(self, edit):
         _accept(self.view, edit, "all")
@@ -114,7 +115,7 @@ class AiCompleteAcceptCommand(sublime_plugin.TextCommand):
 
 
 class AiCompleteAcceptWordCommand(sublime_plugin.TextCommand):
-    """只接受下一个词。"""
+    """Accept only the next word."""
 
     def run(self, edit):
         _accept(self.view, edit, "word")
@@ -124,7 +125,7 @@ class AiCompleteAcceptWordCommand(sublime_plugin.TextCommand):
 
 
 class AiCompleteAcceptLineCommand(sublime_plugin.TextCommand):
-    """只接受下一行。"""
+    """Accept only the next line."""
 
     def run(self, edit):
         _accept(self.view, edit, "line")
@@ -134,7 +135,7 @@ class AiCompleteAcceptLineCommand(sublime_plugin.TextCommand):
 
 
 # ======================================================================
-# 其它命令
+# Other commands
 # ======================================================================
 
 class AiCompleteDismissCommand(sublime_plugin.TextCommand):
@@ -146,7 +147,7 @@ class AiCompleteDismissCommand(sublime_plugin.TextCommand):
 
 
 class AiCompleteRequestCommand(sublime_plugin.TextCommand):
-    """手动触发一次，忽略「行尾才补全」之类的限制。"""
+    """Request a completion manually, ignoring the line-end trigger rule."""
 
     def run(self, edit):
         engine.cancel(self.view, keep_status=True)
@@ -175,16 +176,16 @@ class AiCompleteToggleCommand(sublime_plugin.ApplicationCommand):
             ghost.clear_all()
             engine.reset_all()
         sublime.status_message(
-            "AhuAIComplete: %s" % ("已开启" if new_value else "已关闭")
+            "AhuAIComplete: %s" % ("enabled" if new_value else "disabled")
         )
 
     def description(self):
-        state = "关闭" if settings.get("enabled") else "开启"
+        state = "Disable" if settings.get("enabled") else "Enable"
         return "AhuAIComplete: %s" % state
 
 
 class AiCompleteToggleViewCommand(sublime_plugin.TextCommand):
-    """只在当前文件里停用，不影响其它文件。"""
+    """Disable completion for this view only; other files are unaffected."""
 
     def run(self, edit):
         vs = self.view.settings()
@@ -193,15 +194,15 @@ class AiCompleteToggleViewCommand(sublime_plugin.TextCommand):
         if disabled:
             engine.cancel(self.view)
         sublime.status_message(
-            "AhuAIComplete: 当前文件%s" % ("已停用" if disabled else "已启用")
+            "AhuAIComplete: this view is now %s" % ("disabled" if disabled else "enabled")
         )
 
 
 class AiCompletePingCommand(sublime_plugin.WindowCommand):
-    """打一次真实请求，验证 base_url / api_key / model 配对不对。"""
+    """Send one real request to verify base_url / api_key / model."""
 
     def run(self):
-        sublime.status_message("AhuAIComplete: 正在测试…")
+        sublime.status_message("AhuAIComplete: testing connection...")
 
         def work():
             ok, message = client.ping()
@@ -223,15 +224,16 @@ class AiCompletePingCommand(sublime_plugin.WindowCommand):
 
 
 # ======================================================================
-# 设置 / 键位菜单（适配 Add Repository 时包文件夹名可能不是 AhuAIComplete）
+# Settings / key binding menu (the package folder may not be named
+# AhuAIComplete when installed via Add Repository)
 # ======================================================================
 
 def _own_package_path():
-    """找到本插件包所在的 Packages/xxx 资源路径。
+    """Find the Packages/xxx resource path this package lives in.
 
-    Package Control 官方频道按 name 字段装到 Packages/AhuAIComplete/；
-    但 Add Repository 直接按仓库名装到 Packages/AIComplete/。菜单里写死
-    AhuAIComplete 会打不开。这里通过 ai_complete.py 的位置反推包名。
+    The channel installs into Packages/<name>/, but "Add Repository" installs
+    into Packages/<repo name>/ instead. Hardcoding AhuAIComplete would fail to
+    open. The folder is derived from the location of ai_complete.py.
     """
     try:
         candidates = sublime.find_resources("ai_complete.py")
@@ -246,25 +248,27 @@ def _own_package_path():
 
 
 def _own_resource(filename):
-    """返回 edit_settings 能吃的 base_file，形如 ${packages}/<包名>/<filename>。
+    """Return a base_file that edit_settings accepts: ${packages}/<pkg>/<file>.
 
-    注意：必须用字面量 "${packages}" 前缀，不能直接用 find_resources 返回的
-    "Packages/xxx"。Sublime 的 EditSettingsCommand 内部是
+    The literal "${packages}" prefix is required; the "Packages/xxx" string
+    returned by find_resources cannot be used directly. Sublime's
+    EditSettingsCommand does:
         base_path = base_file.replace("${packages}", "res://Packages")
-    只有替换成 res:// 开头才会被当成资源查找；否则会退化成相对文件系统路径，
-    os.path.exists 必然失败，弹出 "could not be opened"。
+    Only paths starting with res:// are treated as resources. Anything else
+    degrades into a relative filesystem path, os.path.exists fails, and the
+    editor reports "could not be opened".
     """
     pkg = _own_package_path()
     if not pkg:
         return None
-    # pkg 形如 "Packages/AIComplete" —— 换成 "${packages}/AIComplete"
+    # pkg looks like "Packages/AIComplete" -- turn it into "${packages}/AIComplete"
     if pkg.startswith("Packages/"):
         pkg = "${packages}/" + pkg[len("Packages/"):]
     return "%s/%s" % (pkg, filename)
 
 
 def _resource_exists(base_file):
-    """base_file 形如 ${packages}/X/Y —— 按 Sublime 的规则验证资源是否真存在。"""
+    """base_file looks like ${packages}/X/Y -- check it exists, Sublime style."""
     path = base_file.replace("${packages}", "Packages")
     try:
         return path in sublime.find_resources(path.rsplit("/", 1)[-1])
@@ -278,7 +282,7 @@ class AiCompleteEditSettingsCommand(sublime_plugin.ApplicationCommand):
     def run(self):
         base = _own_resource("AhuAIComplete.sublime-settings")
         if not base:
-            sublime.status_message("AhuAIComplete: 找不到默认设置文件")
+            sublime.status_message("AhuAIComplete: default settings file not found")
             return
         sublime.run_command("edit_settings", {
             "base_file": base,
@@ -293,8 +297,8 @@ class AiCompleteEditKeyBindingsCommand(sublime_plugin.ApplicationCommand):
         plat = {"windows": "Windows", "linux": "Linux", "osx": "OSX"}.get(
             sublime.platform(), "Windows"
         )
-        # 平台专属文件优先；万一某平台文件缺失，回退到通用 keymap，
-        # 免得 edit_settings 弹 "could not be opened"。
+        # Prefer the platform-specific file; fall back to the generic keymap
+        # if one is missing, so edit_settings does not report an error.
         base = None
         for name in ("Default (%s).sublime-keymap" % plat,
                      "Default.sublime-keymap"):
@@ -303,7 +307,7 @@ class AiCompleteEditKeyBindingsCommand(sublime_plugin.ApplicationCommand):
                 base = candidate
                 break
         if not base:
-            sublime.status_message("AhuAIComplete: 找不到默认键位文件")
+            sublime.status_message("AhuAIComplete: default key bindings file not found")
             return
         sublime.run_command("edit_settings", {
             "base_file": base,
@@ -312,7 +316,7 @@ class AiCompleteEditKeyBindingsCommand(sublime_plugin.ApplicationCommand):
 
 
 # ======================================================================
-# 插件生命周期
+# Plugin lifecycle
 # ======================================================================
 
 def _on_settings_changed():

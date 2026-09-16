@@ -1,9 +1,9 @@
-"""与模型服务通信。只用标准库，Sublime 自带的 Python 就能跑。
+"""Talk to the model service. Standard library only: Sublime's Python runs it.
 
-支持三种后端：
-  openai      /chat/completions      —— 通用，任何 OpenAI 兼容服务
-  openai_fim  /completions + suffix  —— 真 FIM，代码补全效果最好
-  ollama      /api/generate          —— 本地模型，支持 suffix 做 FIM
+Three backends are supported:
+  openai      /chat/completions      -- generic, any OpenAI-compatible service
+  openai_fim  /completions + suffix  -- real FIM, best completion quality
+  ollama      /api/generate          -- local models, supports suffix for FIM
 """
 
 import json
@@ -17,7 +17,7 @@ from . import settings
 
 
 class ClientError(Exception):
-    """带用户可读信息的请求失败。"""
+    """A request failure carrying a user-readable message."""
 
     def __init__(self, message, detail=""):
         super().__init__(message)
@@ -45,13 +45,14 @@ def _stop_tokens():
 
 
 def _fim_suffix(ctx):
-    """给 FIM 用的 suffix，保证非空。
+    """Return the suffix used for FIM, guaranteed non-empty.
 
-    光标停在文件末尾时 suffix 是空串，而 Ollama 的模板判断长这样：
+    At the end of a file the suffix is an empty string, and Ollama's template
+    branches like this:
         {{- if .Suffix }}<|fim_prefix|>...<|fim_middle|>
-        {{- else if .Messages }}  <- 走到这里就变成聊天了
-    空 suffix 会让 instruct 模型开始用散文解释你的代码，而不是补全。
-    塞一个换行就能把它按回 FIM 分支。
+        {{- else if .Messages }}  <- this branch means chat mode
+    An empty suffix makes an instruct model explain your code in prose instead
+    of completing it. A single newline pushes it back onto the FIM branch.
     """
     return ctx.get("suffix", "") or "\n"
 
@@ -122,19 +123,19 @@ def _post_json(url, payload, conf, headers=None):
             pass
         hint = ""
         if exc.code in (401, 403):
-            hint = "，检查 api_key"
+            hint = ", check api_key"
         elif exc.code == 404:
-            hint = "，检查 base_url 和 model"
+            hint = ", check base_url and model"
         elif exc.code == 429:
-            hint = "，被限流了"
+            hint = ", rate limited"
         raise ClientError("HTTP %s%s" % (exc.code, hint), detail)
     except urllib.error.URLError as exc:
         reason = getattr(exc, "reason", exc)
-        raise ClientError("连不上服务：%s" % reason, str(url))
+        raise ClientError("cannot reach the service: %s" % reason, str(url))
     except json.JSONDecodeError as exc:
-        raise ClientError("返回的不是 JSON", str(exc))
-    except Exception as exc:  # 超时等
-        raise ClientError("请求失败：%s" % exc.__class__.__name__, str(exc))
+        raise ClientError("response is not JSON", str(exc))
+    except Exception as exc:  # timeouts and the like
+        raise ClientError("request failed: %s" % exc.__class__.__name__, str(exc))
 
 
 def _join_url(base, path):
@@ -142,16 +143,17 @@ def _join_url(base, path):
 
 
 # ----------------------------------------------------------------------
-# provider 实现
+# provider implementations
 # ----------------------------------------------------------------------
 
 def _openai_n(conf, num_suggestions, fim=False):
-    """openai / openai_fim 请求里用的 n（候选条数）。
+    """Return n (the number of candidates) for openai / openai_fim requests.
 
-    - providers.X.n 显式写了就用它（DeepSeek /beta 这类只支持 n=1 的端点，
-      在配置里设 n:1 即可，不用动全局 num_suggestions）。
-    - 没写时：openai(chat) 默认沿用全局 num_suggestions；
-      openai_fim 默认 1（多数 FIM 端点如 deepseek /beta 只支持单条）。
+    - When providers.X.n is set explicitly, use it: endpoints that only accept
+      n=1 (DeepSeek /beta and friends) just set n:1 instead of changing the
+      global num_suggestions.
+    - Otherwise openai (chat) falls back to the global num_suggestions, and
+      openai_fim falls back to 1, since most FIM endpoints support one.
     """
     raw = conf.get("n")
     if raw is not None:
@@ -186,11 +188,11 @@ def _complete_openai_chat(ctx, conf, num_suggestions):
     for choice in choices:
         msg = choice.get("message") or {}
         text = msg.get("content") or ""
-        # 有些推理模型把内容放在 reasoning_content 之外的 content，这里只取 content
+        # Only content is taken; some reasoning models expose it elsewhere.
         if text:
             out.append(text)
     if not out and data.get("error"):
-        raise ClientError("服务返回错误", json.dumps(data["error"])[:400])
+        raise ClientError("service returned an error", json.dumps(data["error"])[:400])
     return out
 
 
@@ -214,12 +216,12 @@ def _complete_openai_fim(ctx, conf, num_suggestions):
     out = [c.get("text") or "" for c in choices]
     out = [t for t in out if t]
     if not out and data.get("error"):
-        raise ClientError("服务返回错误", json.dumps(data["error"])[:400])
+        raise ClientError("service returned an error", json.dumps(data["error"])[:400])
     return out
 
 
 def _ollama_one(ctx, conf, seed=None, temp=None):
-    """向 Ollama 发一次 /api/generate。失败抛 ClientError，空响应返回 []。"""
+    """Send one /api/generate request to Ollama. Raises ClientError; [] if empty."""
     if temp is None:
         temp = float(conf.get("temperature") or 0)
     payload = {
@@ -233,28 +235,32 @@ def _ollama_one(ctx, conf, seed=None, temp=None):
             "stop": _stop_tokens(),
         },
     }
-    # seed 固定 RNG，用于复现单条结果；多候选场景不传 seed，靠升温出差异。
+    # A seed pins the RNG so one result can be reproduced; multi-candidate
+    # requests omit it and rely on a higher temperature for variety.
     if seed is not None:
         payload["options"]["seed"] = seed
     payload.update(conf.get("extra_body") or {})
 
     data = _post_json(_join_url(conf["base_url"], "api/generate"), payload, conf)
     if data.get("error"):
-        raise ClientError("Ollama 报错", str(data["error"])[:400])
+        raise ClientError("Ollama returned an error", str(data["error"])[:400])
     text = data.get("response") or ""
     return [text] if text else []
 
 
-# 多候选时给额外请求追加的「实现思路」提示。首条不追加，保持你设的低温
-# 与最高质量；后面几条用不同思路引导出不同写法。Ollama（尤其小模型）在
-# 低温下几乎是贪心解码，换 seed / 升温都没用，只有改 prompt 才真正出差异。
+# Extra "implementation idea" hints appended for multi-candidate requests.
+# The first request gets none, keeping your low temperature and best quality;
+# the others are steered toward different approaches. At low temperature
+# Ollama (small models especially) decodes almost greedily, so changing the
+# seed or the temperature does nothing -- only the prompt creates variety.
 _HINTS = [
     "Use list comprehension.",
     "Use an explicit loop for clarity.",
     "Keep it short and idiomatic.",
 ]
 
-# 不同语言的行注释前缀，用来把思路提示写成注释（留在 prefix，不会被插入）。
+# Line comment prefix per language, used to phrase a hint as a comment
+# (it stays inside the prefix and is never inserted).
 _COMMENT_PREFIX = {
     "python": "#", "ruby": "#", "shell": "#", "bash": "#", "yaml": "#",
     "r": "#", "perl": "#",
@@ -270,7 +276,7 @@ def _comment_prefix(language):
 
 
 def _hinted_prefix(ctx, hint):
-    """在 prefix 末尾追加一条实现思路注释（按当前缩进对齐）。"""
+    """Append an implementation-idea comment to the prefix, indent-aligned."""
     line_prefix = ctx.get("line_prefix", "") or ""
     indent = line_prefix[: len(line_prefix) - len(line_prefix.lstrip())]
     cp = _comment_prefix(ctx.get("language", "python"))
@@ -278,10 +284,10 @@ def _hinted_prefix(ctx, hint):
 
 
 def _strip_echoed_hint(text, hint, language):
-    """模型有时会把我们注入的思路提示当注释原样复述成补全首行。
+    """Models sometimes echo an injected hint back as the first completion line.
 
-    只对自己注入的提示做剥离（首行是以注释前缀开头、且包含提示文本），
-    不会误伤用户真正想写的注释。
+    Only hints we injected are stripped (first line starts with a comment
+    prefix and contains the hint text), so genuine user comments are safe.
     """
     if not hint or not text:
         return text
@@ -299,9 +305,11 @@ def _complete_ollama(ctx, conf, n):
     if n == 1:
         return _ollama_one(ctx, conf)
 
-    # 多候选：N 个请求并行。首条不扰动（最忠实），其余各自带不同思路提示，
-    # 让小模型也能产出几条不同的续写。提示写在 prefix 里不会被插入；若模型
-    # 把它当注释复述成首行，_strip_echoed_hint 会剥掉。
+    # Multi-candidate: N parallel requests. The first is left untouched (most
+    # faithful), the rest carry different hints so even a small model produces
+    # several distinct continuations. The hint lives in the prefix and is never
+    # inserted; if the model echoes it as the first line, _strip_echoed_hint
+    # strips it.
     out = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=n) as ex:
         jobs = []
@@ -332,27 +340,28 @@ _PROVIDERS = {
 
 
 def complete(ctx, num_suggestions=1):
-    """请求补全，返回原始字符串列表（未清洗）。失败抛 ClientError。"""
+    """Request completions, returning raw strings (not cleaned). Raises ClientError."""
     conf = settings.provider_config()
     name = conf.get("name")
 
     handler = _PROVIDERS.get(name)
     if handler is None:
         raise ClientError(
-            "未知的 provider：%s" % name,
-            "可选：%s" % ", ".join(sorted(_PROVIDERS)),
+            "unknown provider: %s" % name,
+            "available: %s" % ", ".join(sorted(_PROVIDERS)),
         )
-    # 用户覆盖文件是「浅合并」——只写 providers.ollama.model 会把整个
-    # providers.ollama 子树替换掉，连带吞掉包内默认的 base_url。
-    # 对本地 ollama 给个兜底，避免这种情况直接报错。
+    # The user settings file is merged shallowly: writing only
+    # providers.ollama.model replaces the whole providers.ollama subtree and
+    # swallows the packaged default base_url. Local ollama gets a fallback so
+    # that case does not become an error.
     if not conf.get("base_url") and name == "ollama":
         conf["base_url"] = "http://127.0.0.1:11434"
     if not conf.get("base_url"):
-        raise ClientError("provider «%s» 没配 base_url" % name)
+        raise ClientError('provider "%s" has no base_url' % name)
     if not conf.get("model"):
-        raise ClientError("provider «%s» 没配 model" % name)
+        raise ClientError('provider "%s" has no model' % name)
     if name != "ollama" and not conf.get("api_key"):
-        raise ClientError("provider «%s» 没配 api_key" % name)
+        raise ClientError('provider "%s" has no api_key' % name)
 
     settings.debug("request ->", name, conf.get("model"),
                    "prefix=%d suffix=%d" % (len(ctx.get("prefix", "")),
@@ -363,11 +372,11 @@ def complete(ctx, num_suggestions=1):
 
 
 # ----------------------------------------------------------------------
-# 连通性自检，给 ai_complete_ping 命令用
+# Connectivity self-check, used by the ai_complete_ping command
 # ----------------------------------------------------------------------
 
 def ping():
-    """返回 (ok: bool, message: str)。"""
+    """Return (ok: bool, message: str)."""
     conf = settings.provider_config()
     name = conf.get("name")
     probe_ctx = {
@@ -384,6 +393,6 @@ def ping():
         detail = ("\n" + exc.detail) if exc.detail else ""
         return False, "[%s / %s] %s%s" % (name, conf.get("model"), exc.message, detail)
     if not out:
-        return False, "[%s / %s] 连上了，但模型没返回内容" % (name, conf.get("model"))
+        return False, "[%s / %s] connected, but the model returned no content" % (name, conf.get("model"))
     sample = re.sub(r"\s+", " ", out[0]).strip()[:80]
-    return True, "[%s / %s] 正常，返回示例：%s" % (name, conf.get("model"), sample)
+    return True, "[%s / %s] OK, sample output: %s" % (name, conf.get("model"), sample)

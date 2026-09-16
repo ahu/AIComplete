@@ -1,4 +1,4 @@
-"""集中读取插件设置，避免每处都写一遍 load_settings。"""
+"""Central settings access, so load_settings is not repeated everywhere."""
 
 import sublime
 
@@ -52,13 +52,14 @@ def provider_name():
 
 
 def provider_config():
-    """返回当前 provider 的配置，已合并默认值。"""
+    """Return the config of the active provider, with defaults merged in."""
     name = provider_name()
     all_providers = get("providers") or {}
     conf = dict(_PROVIDER_DEFAULTS)
     conf.update(all_providers.get(name) or {})
     conf["name"] = name
-    # 允许用环境变量兜底，方便不把 key 写进配置文件
+    # Allow an environment variable as a fallback, so the key need not be
+    # written into the settings file
     if not conf.get("api_key"):
         import os
 

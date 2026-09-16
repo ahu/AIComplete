@@ -1,18 +1,18 @@
 [
     {
-        "caption": "AhuAIComplete: 开启 / 关闭",
+        "caption": "AhuAIComplete: Toggle",
         "command": "ai_complete_toggle"
     },
     {
-        "caption": "AhuAIComplete: 立即补全一次",
+        "caption": "AhuAIComplete: Request Completion",
         "command": "ai_complete_request"
     },
     {
-        "caption": "AhuAIComplete: 在当前文件中关闭",
+        "caption": "AhuAIComplete: Toggle for This View",
         "command": "ai_complete_toggle_view"
     },
     {
-        "caption": "AhuAIComplete: 测试与服务的连通性",
+        "caption": "AhuAIComplete: Test Connection",
         "command": "ai_complete_ping"
     },
     {

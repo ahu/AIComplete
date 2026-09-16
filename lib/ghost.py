@@ -1,13 +1,16 @@
-"""用 phantom 把建议画成灰色的 ghost text。
+"""Render suggestions as grey ghost text using phantoms.
 
-第一行走 LAYOUT_INLINE 直接插在光标处，剩下的行合成一个 LAYOUT_BLOCK
-挂在当前行下方。这是 Sublime 里最接近 VSCode 内联建议的做法。
+The first line is inserted at the cursor with LAYOUT_INLINE; the remaining lines
+are merged into one LAYOUT_BLOCK hanging below the current line. This is the
+closest Sublime equivalent of VSCode inline suggestions.
 
-渲染要点（踩过坑）：
-- minihtml 会整体丢弃带「引号字体名」的 inline style 属性，连 color 一起没，
-  所以这里改用 <style> 类选择器，CSS 里不出现任何引号，最稳。
-- 字体名可能带空格（如 "JetBrains Mono NL Thin"），一旦加引号就会触发上面的坑，
-  所以这里干脆不指定 font-family，用 Sublime 自己的 phantom 默认字体即可。
+Rendering notes (learned the hard way):
+- minihtml discards an entire inline style attribute when the font name is
+  quoted, taking the color with it, so a <style> class selector is used
+  instead and no quotes appear anywhere in the CSS.
+- Font names may contain spaces ("JetBrains Mono NL Thin"); quoting one
+  triggers the bug above, so font-family is left unset and Sublime's default
+  phantom font is used.
 """
 
 import html
@@ -32,13 +35,13 @@ def _phantom_sets(view):
 
 
 def _escape(text, tab_size):
-    """转义成 minihtml，并且把空白保住（minihtml 会折叠连续空格）。"""
+    """Escape for minihtml and keep whitespace (it collapses runs of spaces)."""
     text = text.replace("\t", " " * max(1, tab_size))
     escaped = html.escape(text, quote=False)
     return escaped.replace(" ", "&nbsp;")
 
 
-# ---- 主题自适应灰阶（字面量 hex，minihtml 一定渲染）----
+# ---- Theme-adaptive grey (literal hex, always rendered by minihtml) ----
 
 def _hex_to_rgb(h):
     h = (h or "").lstrip("#").strip()
@@ -53,7 +56,7 @@ def _hex_to_rgb(h):
 
 
 def _blend(fg, bg, t):
-    """t=0 取前景，t=1 取背景；ghost 取偏背景的值，越偏越淡。"""
+    """t=0 is the foreground, t=1 the background; ghost text leans to the background."""
     a = _hex_to_rgb(fg)
     b = _hex_to_rgb(bg)
     if a is None or b is None:
@@ -63,7 +66,7 @@ def _blend(fg, bg, t):
 
 
 def _ghost_color(view, t):
-    """从 color scheme 算一档灰。失败回退到中性灰。"""
+    """Derive a shade of grey from the color scheme; fall back to neutral grey."""
     try:
         st = view.style()
         fg = st.get("foreground")
@@ -77,12 +80,12 @@ def _ghost_color(view, t):
 
 
 def _ghost_font_size(view):
-    """把 Sublime 的 font_size（pt）换算成 phantom CSS 用的 px。
+    """Convert Sublime's font_size (pt) into the px phantom CSS expects.
 
-    Sublime 的 font_size 是点；不同平台默认 DPI 不同：
-      - Windows / Linux 通常 96 DPI → 1pt ≈ 4/3 px
-      - macOS 逻辑 DPI 72 → 1pt ≈ 1px
-    直接当 px 写会让 Windows 上的 ghost 明显偏小一号。
+    Sublime's font_size is in points, and the default DPI differs per platform:
+      - Windows / Linux are usually 96 DPI -> 1pt is about 4/3 px
+      - macOS uses a logical 72 DPI -> 1pt is about 1px
+    Treating the value as px makes ghost text noticeably smaller on Windows.
     """
     pt = view.settings().get("font_size") or 12
     try:
@@ -93,7 +96,7 @@ def _ghost_font_size(view):
         plat = sublime.platform()
     except Exception:
         plat = "osx"
-    # macOS 按 1:1；Windows/Linux 按 96 DPI 换算
+    # 1:1 on macOS; the 96 DPI conversion on Windows/Linux
     mult = 1.0 if plat == "osx" else 4.0 / 3.0
     delta = view.settings().get("ghost_font_size_delta") or 0
     try:
@@ -104,7 +107,7 @@ def _ghost_font_size(view):
 
 
 def _style_block(view):
-    """返回一段 <style> 内容（CSS 里不带任何引号，避免 minihtml 丢属性）。"""
+    """Return <style> content (no quotes, so minihtml keeps the properties)."""
     font_size = _ghost_font_size(view)
     color = _ghost_color(view, 0.55)
     badge_color = _ghost_color(view, 0.7)
@@ -126,7 +129,7 @@ def _badge(view, index, total):
 
 
 def show(view, text, point, index=0, total=1):
-    """在 point 处画出 text。text 为空则等同于 clear。"""
+    """Draw text at point. An empty text is equivalent to clear."""
     if not text:
         clear(view)
         return

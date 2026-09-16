@@ -1,23 +1,25 @@
 {
     // ------------------------------------------------------------------
-    // AhuAIComplete —— 内联 AI 代码补全（ghost text）
-    // 复制本文件到 Packages/User/AhuAIComplete.sublime-settings 后再修改，
-    // 这样升级插件不会覆盖你的配置。
+    // AhuAIComplete -- inline AI code completion (ghost text)
+    // Copy this file to Packages/User/AhuAIComplete.sublime-settings before
+    // editing it, so that upgrading the package never overwrites your setup.
     // ------------------------------------------------------------------
 
-    // 总开关。也可以用命令面板 "AhuAIComplete: Toggle" 临时切换。
+    // Master switch. It can also be toggled from the command palette.
     "enabled": true,
 
-    // 打字后停顿多少毫秒才发起请求（防抖）。调大更省 token，调小更跟手。
+    // How long to wait after the last keystroke before requesting (debounce).
+    // A larger value saves tokens, a smaller one feels more responsive.
     "debounce_ms": 300,
 
     // ------------------------------------------------------------------
-    // 模型服务
-    //   "openai"      标准 chat/completions 接口（OpenAI、DeepSeek、Kimi、
-    //                 OpenRouter、vLLM、one-api…… 只要兼容即可）
-    //   "openai_fim"  OpenAI 风格的 /completions + suffix 字段，真正的
-    //                 「中间填充」，代码补全质量最好（如 DeepSeek beta）
-    //   "ollama"      本地 Ollama，/api/generate，支持 suffix 做 FIM
+    // Model service
+    //   "openai"      Standard chat/completions API (OpenAI, DeepSeek, Kimi,
+    //                 OpenRouter, vLLM, one-api, ... anything compatible)
+    //   "openai_fim"  OpenAI-style /completions with a suffix field, i.e. real
+    //                 fill-in-the-middle, which gives the best completions
+    //                 (e.g. DeepSeek beta)
+    //   "ollama"      Local Ollama, /api/generate, supports suffix for FIM
     // ------------------------------------------------------------------
     "provider": "ollama",
 
@@ -30,84 +32,96 @@
             "temperature": 0.2
         },
         "openai_fim": {
-            // DeepSeek 的 FIM 补全端点示例
+            // Example: the DeepSeek fill-in-the-middle endpoint.
             "base_url": "https://api.deepseek.com/beta",
             "api_key": "",
             "model": "deepseek-chat",
-            // 多数 FIM 端点（如 DeepSeek /beta）只支持单条，默认就发 n=1。
-            // 想要多条候选，在这里显式写 n，例如 "n": 3。此值优先于下面的
-            // 全局 num_suggestions。
+            // Most FIM endpoints (e.g. DeepSeek /beta) only support a single
+            // completion, so n=1 is sent by default. To get several candidates,
+            // set n explicitly here, for example "n": 3. It wins over the
+            // global num_suggestions setting below.
             "max_tokens": 256,
             "temperature": 0.2
         },
         "ollama": {
             "base_url": "http://127.0.0.1:11434",
             "api_key": "",
-            // 补全类任务优先选 coder 系列的 base 模型，它们训练过 FIM。
-            // 机器扛得住就换 qwen2.5-coder:7b，质量明显更好。
+            // For completion work prefer the coder base models; they were
+            // trained for FIM. Switch to qwen2.5-coder:7b if your machine can
+            // handle it, for noticeably better quality.
             "model": "qwen2.5-coder:1.5b",
             "max_tokens": 256,
             "temperature": 0.2
         }
     },
 
-    // 请求超时（秒）
+    // Request timeout, in seconds
     "timeout": 20,
 
-    // https 证书校验。公司自签证书报错时可临时设 false。
+    // HTTPS certificate verification. Set to false temporarily if a
+    // self-signed certificate causes errors.
     "verify_ssl": true,
 
     // ------------------------------------------------------------------
-    // 上下文
+    // Context
     // ------------------------------------------------------------------
 
-    // 光标之前 / 之后各取多少个字符送给模型
+    // How many characters before / after the cursor reach the model
     "prefix_chars": 3000,
     "suffix_chars": 1000,
 
-    // 把同窗口其它已打开文件的开头片段也带上，帮模型理解项目风格
+    // Include the beginning of other files open in the same window, so the
+    // model picks up the project's style
     "use_open_files_context": true,
     "open_files_max": 3,
     "open_files_chars": 600,
 
     // ------------------------------------------------------------------
-    // 输出
+    // Output
     // ------------------------------------------------------------------
 
-    // 单次建议最多几行，超出部分截断
+    // Maximum number of lines per suggestion; anything beyond is truncated
     "max_lines": 12,
 
-    // 想要几个候选（可用 Cmd+Shift+[ / ] 切换）。
-    //   ollama      —— 用「并行多次请求」凑出多个续写，条数由这里决定。
-    //   openai      —— 走接口自带的 n 参数，默认也用这个值（想多条就调大）。
-    //   openai_fim  —— 多数 FIM 端点（如 DeepSeek /beta）只支持 n=1，因此
-    //                 默认就发 1 条；要多条请在 providers.X.n 里显式设。
-    // 多候选开起来才能用 Cmd+Shift+[ / ] 切换候选。本地 1.5b 模型开 3 很轻。
+    // How many candidates to request (cycle them with Cmd+Shift+[ / ]).
+    //   ollama      -- parallel requests produce several continuations; the
+    //                  count comes from here.
+    //   openai      -- uses the API's own n parameter, defaulting to this
+    //                  value (raise it to get more candidates).
+    //   openai_fim  -- most FIM endpoints (e.g. DeepSeek /beta) only accept
+    //                  n=1, so 1 is sent by default; set providers.X.n
+    //                  explicitly to ask for more.
+    // Cycling only works when more than one candidate is available. Running 3
+    // with a local 1.5b model is cheap.
     "num_suggestions": 3,
 
-    // ghost text 字号微调（单位：px）。Windows 上若仍觉偏小可改成 1/2；
-    // 改成 0 表示完全按平台 DPI 换算，不再额外增减。
+    // Fine-tune the ghost text font size, in px. On Windows, 1 or 2 helps if
+    // it still looks too small; 0 uses the platform DPI conversion only, with
+    // no extra adjustment.
     "ghost_font_size_delta": 0,
 
-    // 自动补全弹窗出现时隐藏 ghost text，避免两层 UI 打架
+    // Hide ghost text while the autocomplete popup is open, so the two UIs do
+    // not fight each other
     "hide_when_autocomplete_visible": true,
 
-    // 只在光标处于「行尾或后面只剩空白/闭合符号」时触发，减少无效请求
+    // Only trigger when the cursor is at the end of a line or followed by
+    // nothing but whitespace / closing brackets, to avoid useless requests
     "trigger_only_at_line_end": true,
 
-    // 这些 scope 下不触发（前缀匹配）
+    // Do not trigger inside these scopes (prefix match)
     "disabled_scopes": [
         "text.plain",
         "text.find-in-files",
         "source.regexp"
     ],
 
-    // 这些语法下不触发，填 syntax 文件名里的关键字，小写匹配
+    // Do not trigger in these syntaxes; use a keyword from the syntax file
+    // name, matched in lower case
     "disabled_syntaxes": [],
 
-    // 在状态栏显示 AhuAIComplete 的当前状态
+    // Show the current AhuAIComplete state in the status bar
     "show_status": true,
 
-    // 打开调试日志（写到 Sublime 控制台，ctrl+`）
+    // Enable debug logging (written to the Sublime console, ctrl+`)
     "debug": false
 }

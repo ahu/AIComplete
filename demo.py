@@ -1,13 +1,13 @@
-"""AhuAIComplete 试驾场地。
+"""AhuAIComplete playground.
 
-把光标放到下面任意一个 TODO 后面，停一下，灰色建议就会浮出来。
-Tab 接受整条 / Esc 丢弃 / Cmd+Shift+Enter 手动再要一条。
+Put the cursor after any TODO below and pause: a grey suggestion appears.
+Tab accepts the whole thing / Esc dismisses it / Cmd+Shift+Enter asks for more.
 
-多候选：本插件默认一次要 3 条候选。当 ghost 出现时，按
-  Cmd+Shift+]  下一条候选
-  Cmd+Shift+[  上一条候选
-（Windows / Linux 上是 Alt+] / Alt+[）
-角标会显示当前是第几条（如 [2/3]）。
+Multiple candidates: three are requested by default. With ghost text on:
+  Cmd+Shift+]  next candidate
+  Cmd+Shift+[  previous candidate
+(Alt+] / Alt+[ on Windows / Linux)
+A badge shows which one you are on, e.g. [2/3].
 """
 
 
@@ -15,7 +15,7 @@ def fibonacci(n):
     """Return the n-th Fibonacci number."""
     if n < 2:
         return n
-    # TODO: 光标放到下一行的缩进后面等一下，然后试试 Cmd+Shift+]
+    # TODO: put the cursor after the indent on the next line and try Cmd+Shift+]
     return fibonacci(n - 1) + fibonacci(n - 2)
 
 
@@ -27,16 +27,16 @@ class ShoppingCart:
         self.items.append({"name": name, "price": price, "qty": qty})
 
     def total(self):
-        # TODO: 这里也试试，多候选下能切到不同的累加写法
+        # TODO: try here too; multiple candidates give different ways to sum
         return sum(item["price"] * item["qty"] for item in self.items)
 
 
 def greet(name):
-    # TODO: 同一个位置可能因为随机种子产出几种写法，正好拿来练候选切换
+    # TODO: the same spot may yield several variants; good cycling practice
     return "Hello, %s!" % name
 
 
 def dedupe(items):
-    # TODO: 多候选的最佳练手点——集合法 / 循环法 / 字典保序法都可能被给出来，
-    # 等 ghost 出现后按 Cmd+Shift+] 一条条看过去，挑顺眼的 Tab 接受。
+    # TODO: the best place to practice cycling -- set / loop / dict-based
+    # versions may all appear; step through them with Cmd+Shift+] and Tab one.
     return list(dict.fromkeys(items))

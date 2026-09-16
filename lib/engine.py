@@ -1,8 +1,9 @@
-"""补全调度：防抖、并发、过期丢弃、缓存、候选管理。
+"""Completion scheduling: debounce, concurrency, cache, candidate management.
 
-关键约束：Sublime 的 async worker 是单线程队列，网络请求绝对不能放
-在那上面跑，否则整个插件系统的异步事件都会被堵住。所以真正的 HTTP
-在独立的 daemon 线程里，回主线程只用 set_timeout。
+Key constraint: Sublime's async worker is a single-threaded queue, so network
+requests must never run on it, or every plugin's asynchronous events get
+blocked. The actual HTTP happens on a separate daemon thread and only returns
+to the main thread through set_timeout.
 """
 
 import re
@@ -16,7 +17,7 @@ from . import client, context, ghost, postprocess, settings
 
 STATUS_KEY = "ai_complete"
 _CACHE_SIZE = 64
-_PREFIX_GUARD = 64  # 复用建议时用多少字符校验上下文没跑偏
+_PREFIX_GUARD = 64  # chars used to verify the context when reusing a suggestion
 
 _WORD_RE = re.compile(r"^[ \t]*(?:[A-Za-z0-9_]+|[^A-Za-z0-9_\s])")
 
@@ -46,13 +47,13 @@ class Suggestion(object):
 class Engine(object):
     def __init__(self):
         self._suggestions = {}      # view_id -> Suggestion
-        self._gen = {}              # view_id -> 最新请求代号
-        self._inflight = set()      # 正在请求中的 view_id
+        self._gen = {}              # view_id -> latest request token
+        self._inflight = set()      # view_ids with a request in flight
         self._cache = OrderedDict()
         self._lock = threading.Lock()
         self._last_error = ("", 0.0)
 
-    # ---------------- 状态 ----------------
+    # ---------------- status ----------------
 
     def _status(self, view, text):
         if not settings.get("show_status"):
@@ -79,7 +80,7 @@ class Engine(object):
         self._last_error = (message, now)
         sublime.status_message("AhuAIComplete: %s" % message)
 
-    # ---------------- 查询 ----------------
+    # ---------------- queries ----------------
 
     def current(self, view):
         if view is None:
@@ -91,10 +92,10 @@ class Engine(object):
         return bool(sug and sug.text)
 
     def is_self_inflicted(self, view):
-        """这次 buffer 变化是不是我们自己插入 ghost 造成的。
+        """Whether this buffer change was caused by our own insertion.
 
-        接受建议后 Sublime 照样会派发 on_modified，如果不认出来，
-        剩余的 leftover 建议会被自己误杀。
+        Sublime still dispatches on_modified after a suggestion is accepted;
+        without recognising that, the leftover suggestion would kill itself.
         """
         sug = self.current(view)
         if sug is None:
@@ -104,10 +105,10 @@ class Engine(object):
         sel = view.sel()
         return len(sel) == 1 and sel[0].empty() and sel[0].b == sug.point
 
-    # ---------------- 生命周期 ----------------
+    # ---------------- lifecycle ----------------
 
     def cancel(self, view, keep_status=False):
-        """撤掉建议，并让在途请求作废。"""
+        """Drop the suggestion and invalidate any in-flight request."""
         if view is None:
             return
         vid = view.id()
@@ -131,7 +132,7 @@ class Engine(object):
             self._cache.clear()
         ghost.clear_all()
 
-    # ---------------- 缓存 ----------------
+    # ---------------- cache ----------------
 
     def _cache_get(self, key):
         with self._lock:
@@ -147,12 +148,12 @@ class Engine(object):
             while len(self._cache) > _CACHE_SIZE:
                 self._cache.popitem(last=False)
 
-    # ---------------- 复用 ----------------
+    # ---------------- reuse ----------------
 
     def try_extend(self, view):
-        """用户又敲了几个字符，看能不能直接沿用现有建议，省一次请求。
+        """Reuse an existing suggestion instead of spending another request.
 
-        能沿用返回 True，此时 ghost 已经就地更新。
+        Returns True when it can be reused; ghost text is already updated.
         """
         sug = self.current(view)
         if sug is None:
@@ -169,7 +170,7 @@ class Engine(object):
         if not typed or "\n" in typed:
             return False
 
-        # 校验光标之前那段没被别处改动带偏
+        # verify the text before the cursor was not shifted by edits elsewhere
         guard_start = max(0, sug.point - _PREFIX_GUARD)
         guard_now = view.substr(sublime.Region(guard_start, sug.point))
         if guard_now != sug.guard:
@@ -192,10 +193,10 @@ class Engine(object):
         self._status(view, "AI ok")
         return True
 
-    # ---------------- 请求 ----------------
+    # ---------------- requests ----------------
 
     def schedule(self, view, force=False):
-        """防抖后发起一次补全。force=True 走手动触发路径。"""
+        """Schedule a completion after the debounce. force=True is a manual one."""
         if view is None:
             return
         if not force and not settings.get("enabled"):
@@ -221,7 +222,7 @@ class Engine(object):
     def _fire(self, view, token, force):
         vid = view.id()
         if self._gen.get(vid) != token:
-            return          # 期间又有新输入
+            return          # a newer keystroke arrived
         if not view.is_valid():
             return
         if not force and not context.is_enabled_for(view):
@@ -259,8 +260,8 @@ class Engine(object):
             raw = client.complete(ctx, num)
         except client.ClientError as exc:
             error = exc
-        except Exception as exc:  # 防御：worker 里抛异常会静默丢线程
-            error = client.ClientError("内部错误：%s" % exc.__class__.__name__, str(exc))
+        except Exception as exc:  # defensive: an uncaught worker exception would silently kill the thread
+            error = client.ClientError("internal error: %s" % exc.__class__.__name__, str(exc))
 
         def finish():
             self._inflight.discard(view.id())
@@ -291,7 +292,7 @@ class Engine(object):
             return
 
         max_lines = int(settings.get("max_lines") or 12)
-        # FIM 接口只该吐代码，返回散文说明请求走岔了，直接丢
+        # a FIM endpoint should emit code only; prose means the request went wrong
         reject_prose = settings.provider_name() in ("ollama", "openai_fim")
         cleaned = []
         for raw in raw_list:
@@ -312,7 +313,7 @@ class Engine(object):
         ghost.show(view, sug.text, point, sug.index, sug.total)
         self._status(view, "AI ok")
 
-    # ---------------- 候选切换 ----------------
+    # ---------------- candidate cycling ----------------
 
     def cycle(self, view, delta):
         sug = self.current(view)
@@ -322,13 +323,14 @@ class Engine(object):
         ghost.show(view, sug.text, sug.point, sug.index, sug.total)
         return True
 
-    # ---------------- 接受 ----------------
+    # ---------------- accepting ----------------
 
     def take(self, view, portion="all"):
-        """取出要插入的文本。返回 (point, text, leftover)。
+        """Return the text to insert as (point, text, leftover).
 
         portion: all / word / line
-        leftover 非空时说明只接受了一部分，插入后应该继续显示剩下的。
+        A non-empty leftover means only part was accepted, so the rest stays
+        displayed after insertion.
         """
         sug = self.current(view)
         if sug is None or not sug.text:
@@ -354,7 +356,7 @@ class Engine(object):
         return sug.point, text, ""
 
     def after_insert(self, view, new_point, leftover):
-        """插入完成后调用：要么收尾，要么把剩余部分接着显示。"""
+        """Called after insertion: either finish, or keep showing the leftover."""
         vid = view.id()
         self._gen[vid] = self._gen.get(vid, 0) + 1
         if leftover and leftover.strip():
