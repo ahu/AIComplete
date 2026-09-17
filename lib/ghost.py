@@ -17,6 +17,8 @@ import html
 
 import sublime
 
+from . import settings
+
 PHANTOM_KEY_INLINE = "ai_complete_inline"
 PHANTOM_KEY_BLOCK = "ai_complete_block"
 
@@ -98,7 +100,9 @@ def _ghost_font_size(view):
         plat = "osx"
     # 1:1 on macOS; the 96 DPI conversion on Windows/Linux
     mult = 1.0 if plat == "osx" else 4.0 / 3.0
-    delta = view.settings().get("ghost_font_size_delta") or 0
+    # Package setting, not a view setting: it lives in
+    # AhuAIComplete.sublime-settings, which view.settings() never sees.
+    delta = settings.get("ghost_font_size_delta") or 0
     try:
         delta = float(delta)
     except (TypeError, ValueError):

@@ -5,7 +5,7 @@
 		{
 			"name": "AhuAIComplete",
 			"details": "https://github.com/ahu/AIComplete",
-			"labels": ["auto-complete", "ai", "completion"],
+			"labels": ["auto-complete", "completions", "ai"],
 			"releases": [
 				{
 					"sublime_text": ">=4107",

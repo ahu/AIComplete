@@ -8,28 +8,33 @@ No vendor lock-in — a local Ollama instance, DeepSeek, OpenAI, or an internal
 vLLM / one-api deployment all work as long as the API is compatible. Zero
 third-party dependencies: Sublime's bundled Python is enough.
 
+You type up to the opening bracket and pause:
+
 ```
-def fib(n):
-    if n < 2:
-        return n
-    return fib(n-1) + fib(n-2)      <- grey part is the suggestion, Tab accepts
+typed:       return fib(n-1) + fib(
+shown:       n-2)
 ```
+
+The `n-2)` part appears at the cursor as grey ghost text; `Tab` inserts it.
 
 ## Installation
 
+**Package Control** — run *Package Control: Install Package* and pick
+**AhuAIComplete**.
+
+**From source**, for hacking on the code. Clone the repository straight into
+the Packages directory; Sublime loads a package in place, so there is nothing
+to build and no installer to run:
+
 ```bash
-./install.sh            # symlink into Packages/, keeping one copy of the source
-./install.sh --copy     # copy, handy for deploying to another machine
-./install.sh --uninstall
+cd ~/Library/Application\ Support/Sublime\ Text/Packages   # macOS
+git clone https://github.com/ahu/AIComplete AhuAIComplete
 ```
 
-Manual installation works too: drop the whole `AhuAIComplete` directory into
-`~/Library/Application Support/Sublime Text/Packages/` (macOS).
-
-> **After a symlink install, restart Sublime when you change the code.**
-> Sublime's file watcher does not follow symlinks, so edits are not hot
-> reloaded and you end up staring at the old module. Use `--copy` if you plan
-> to edit frequently, then work directly in `Packages/AhuAIComplete/`.
+Sublime reloads the package's top-level module when it is saved, but not the
+submodules under `lib/`, so a reloader is worth having while working on those —
+[AutomaticPackageReloader](https://packagecontrol.io/packages/AutomaticPackageReloader)
+does exactly that.
 
 Once installed, run **AhuAIComplete: Test Connection** from the command
 palette. It sends one real request and prints the result in the output panel,
@@ -84,6 +89,10 @@ it up.
 | Dismiss | `Esc` | `Esc` |
 | Request a completion manually | `Cmd+Shift+Enter` | `Alt+\` |
 | Cycle candidates | `Cmd+Shift+[` / `]` | `Alt+[` / `]` |
+
+Each platform's bindings live in a single file, so
+`Preferences -> Package Settings -> AhuAIComplete -> Key Bindings` shows every
+shortcut at once.
 
 > macOS note: `Option` plus a key produces a composed character (`Option+\`
 > types `«`), so every shortcut that originally used `Option` became
@@ -151,7 +160,7 @@ to trigger everywhere.
 ## Tests
 
 ```bash
-python3 tests/test_logic.py     # 20 pure logic tests, no Sublime needed
+python3 tests/test_logic.py     # 41 pure logic tests, no Sublime needed
 python3 tests/test_live.py      # hits a real backend, three completion cases
 python3 tests/test_live.py ollama qwen2.5-coder:7b   # pick provider / model
 ```
@@ -159,8 +168,8 @@ python3 tests/test_live.py ollama qwen2.5-coder:7b   # pick provider / model
 ## Code layout
 
 ```
-ai_complete.py          commands and event listeners (Sublime loads only
-                        the .py files at the package root)
+ai_complete.py          commands and event listeners (Sublime loads only the
+                        .py files at the package root)
 lib/settings.py         settings access, with environment-variable fallback
 lib/context.py          prefix/suffix extraction, language detection,
                         cross-file context, trigger conditions
@@ -169,6 +178,8 @@ lib/postprocess.py      model-output cleaning pipeline
 lib/ghost.py            phantom rendering of the grey suggestion
 lib/engine.py           debounce, concurrency, stale-response dropping,
                         LRU cache, candidate management
+examples/demo.py        scratch file for trying completions by hand
+tests/                  pure-logic tests (no Sublime needed) and live tests
 ```
 
 ## Troubleshooting
